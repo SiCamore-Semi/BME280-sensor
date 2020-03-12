@@ -28,6 +28,23 @@ def get_fahrenheit():
 def calculate_tmp():
     return ((get_t_fine() * 5 + 128) >> 8 )
 
+def calculate_press():
+    adc_p = read_press()
+    var1 = get_t_fine() -128000
+    var2 = var1 * var1 * press_cals[5]
+    var2 = var2 + ((var1 * press_cals[4]) << 17)
+    var2 = var2 + (press_cals[3] << 35)
+    var1 = ((var1 * var1 * press_cals[2]) >> 8) + ((var1 * press_cals[1]) << 12)
+    var1 = ((1 << 47) + var1) * press_cals[0] >> 33
+    if var1 == 0:
+        return 0
+    p = 1048576-adc_p
+    p = (((p << 31)-var2)*3125)//var1
+    var1 = (press_cals[8] * (p>>13) * (p>>13)) >> 25
+    var2 = (press_cals[7] * p) >> 19
+    p = ((p + var1 + var2) >> 8) + (press_cals[6] << 4)
+    return p
+
 def get_t_fine():
     adc = read_tmp()
     var1 = ((((adc >> 3)-(t1 << 1)) * t2) >> 11)
@@ -48,7 +65,7 @@ def read_calibration(start_address,amount):
         cal |= (raw_vals[i+1] << 8)
         cal |= raw_vals[i]
         if i == 0:
-            cal %= 0xFFFF
+            cal &= 0xFFFF
         calc_vals.append(cal)
     return calc_vals
 
@@ -73,5 +90,8 @@ def read_registers(start_address,amount):
 bus = smbus2.SMBus(i2c_ch)
 time.sleep(1)
 t1,t2,t3 = get_tmp_calibration()
-press_calibs = get_press_calibration()
+press_cals = get_press_calibration()
 set_mode_to_normal()
+while 1:
+    print(calculate_press())
+    time.sleep(1)
