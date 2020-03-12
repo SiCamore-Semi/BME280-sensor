@@ -1,16 +1,17 @@
 import time,smbus2
 
 i2c_ch = 1
-
 i2c_address = 0x76
+
 temp_msb = 0xFA
 temp_lsb = 0xFB
 temp_xlsb = 0xFC
-ctrl_meas = 0xF4
 temp_calibration_address = 0x88
 
-bus = smbus2.SMBus(i2c_ch)
-time.sleep(1)
+press_msb = 0xF7
+
+ctrl_meas = 0xF4
+
 
 
 def set_mode_to_normal():
@@ -45,15 +46,20 @@ def read_calibration():
     return t1,t2,t3
 
 def read_tmp():
-    msb,lsb,xlsb = read_registers()
-    tmp = 0
-    tmp = tmp | (msb << 12)
-    tmp = tmp | (lsb << 4)
-    tmp = tmp | (xlsb >> 4)
-    return tmp
+    return read_measurement(temp_msb)
 
-def read_registers():
-    return bus.read_i2c_block_data(i2c_address, temp_msb, 3)
+def read_measurement(start_address):
+    msb,lsb,xlsb = read_registers(start_address)
+    meas = 0
+    meas |= (msb << 12)
+    meas |= (lsb << 4)
+    meas |= (xlsb >> 4)
+    return meas
 
+def read_registers(start_address):
+    return bus.read_i2c_block_data(i2c_address, start_address, 3)
+
+bus = smbus2.SMBus(i2c_ch)
+time.sleep(1)
 t1,t2,t3 = read_calibration()
 set_mode_to_normal()
