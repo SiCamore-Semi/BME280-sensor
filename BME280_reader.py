@@ -25,12 +25,18 @@ def get_celsius():
 def get_fahrenheit():
     return get_celsius() * 9/5 + 32
 
+def get_hpa():
+    return get_pa()/100
+
+def get_pa():
+    return calculate_press()/256
+
 def calculate_tmp():
-    return ((get_t_fine() * 5 + 128) >> 8 )
+    return ((get_t_fine(read_tmp()) * 5 + 128) >> 8 )
 
 def calculate_press():
-    adc_p = read_press()
-    var1 = get_t_fine() -128000
+    adc_p, adc_t = read_press_and_tmp()
+    var1 = get_t_fine(adc_t) -128000
     var2 = var1 * var1 * press_cals[5]
     var2 = var2 + ((var1 * press_cals[4]) << 17)
     var2 = var2 + (press_cals[3] << 35)
@@ -39,14 +45,13 @@ def calculate_press():
     if var1 == 0:
         return 0
     p = 1048576-adc_p
-    p = (((p << 31)-var2)*3125)//var1
+    p = int((((p << 31)-var2)*3125)/var1)
     var1 = (press_cals[8] * (p>>13) * (p>>13)) >> 25
     var2 = (press_cals[7] * p) >> 19
     p = ((p + var1 + var2) >> 8) + (press_cals[6] << 4)
     return p
 
-def get_t_fine():
-    adc = read_tmp()
+def get_t_fine(adc):
     var1 = ((((adc >> 3)-(t1 << 1)) * t2) >> 11)
     var2 = ((((adc >> 4) - t1) * ((adc >> 4) - t1)) >> 12) * (t3 >> 14)
     return var1 + var2 
@@ -71,13 +76,14 @@ def read_calibration(start_address,amount):
 
 
 def read_tmp():
-    return read_measurement(temp_msb)
+    return read_press_and_tmp()[1]
 
-def read_press():
-    return read_measurement(press_msb)
+def read_press_and_tmp():
+    regs = read_registers(press_msb,6)
+    return read_measurement(*regs[:3]),read_measurement(*regs[3:])
 
-def read_measurement(start_address):
-    msb,lsb,xlsb = read_registers(start_address,3)
+
+def read_measurement(msb,lsb,xlsb):
     meas = 0
     meas |= (msb << 12)
     meas |= (lsb << 4)
@@ -93,5 +99,5 @@ t1,t2,t3 = get_tmp_calibration()
 press_cals = get_press_calibration()
 set_mode_to_normal()
 while 1:
-    print(calculate_press())
+    print(get_hpa())
     time.sleep(1)
