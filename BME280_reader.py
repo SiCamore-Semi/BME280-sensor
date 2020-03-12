@@ -9,6 +9,7 @@ temp_xlsb = 0xFC
 temp_calibration_address = 0x88
 
 press_msb = 0xF7
+press_calibration_address = 0x8E
 
 ctrl_meas = 0xF4
 
@@ -25,14 +26,19 @@ def get_fahrenheit():
     return get_celsius() * 9/5 + 32
 
 def calculate_tmp():
+    return ((get_t_fine() * 5 + 128) >> 8 )
+
+def get_t_fine():
     adc = read_tmp()
     var1 = ((((adc >> 3)-(t1 << 1)) * t2) >> 11)
     var2 = ((((adc >> 4) - t1) * ((adc >> 4) - t1)) >> 12) * (t3 >> 14)
-    t_fine = var1 + var2
-    return ((t_fine * 5 + 128) >> 8 )
+    return var1 + var2 
 
 def get_tmp_calibration():
     return read_calibration(temp_calibration_address,6)
+
+def get_press_calibration():
+    return read_calibration(press_calibration_address,18)
 
 def read_calibration(start_address,amount):
     raw_vals = read_registers(start_address,amount)
@@ -67,4 +73,5 @@ def read_registers(start_address,amount):
 bus = smbus2.SMBus(i2c_ch)
 time.sleep(1)
 t1,t2,t3 = get_tmp_calibration()
+press_calibs = get_press_calibration()
 set_mode_to_normal()
